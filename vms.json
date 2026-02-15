@@ -1,0 +1,63 @@
+{
+  "vms": [
+    {
+      "name": "rdk.snapshot",
+      "disk": "rdk.snapshot.qcow2",
+      "memory": "6144",
+      "cpus": "6",
+      "bios": "u-boot.bin",
+      "networks": [
+        {
+          "type": "vmnet-shared",
+          "id": "testwan",
+          "mac": "52:54:00:2d:6e:99"
+        },
+        {
+          "type": "vmnet-host",
+          "id": "testlan",
+          "mac": "52:54:00:2d:6e:98"
+        },
+        {
+          "type": "user",
+          "id": "testlan2",
+          "mac": "52:54:00:2d:6e:97"
+        }
+      ],
+      "ssh_port": null,
+      "http_port": null,
+      "working_dir": "/Users/cpokur625@cable.comcast.com/OneDrive - Comcast/RDK-B-core/2026-planning/staging/armsys1y"
+    },
+    {
+      "name": "RDK-B-Digital-Twin",
+      "disk": "rdk.twin.qcow2",
+      "memory": "1024",
+      "cpus": "2",
+      "bios": "u-boot.bin",
+      "snapshot": true,
+      "networks": [
+        {
+          "type": "vmnet-shared",
+          "id": "testwan",
+          "mac": "52:54:00:2d:6e:9a"
+        },
+        {
+          "type": "vmnet-host",
+          "id": "testlan",
+          "mac": "52:54:00:2d:6e:9b"
+        },
+        {
+          "type": "user",
+          "id": "testlan2",
+          "mac": "52:54:00:2d:6e:9c",
+          "port_forwards": [
+            {"host": 2223, "guest": 22},
+            {"host": 8081, "guest": 80}
+          ]
+        }
+      ],
+      "ssh_port": 2223,
+      "http_port": 8081,
+      "working_dir": "/Users/cpokur625@cable.comcast.com/OneDrive - Comcast/RDK-B-core/2026-planning/staging/armsys1y/twin"
+    }
+  ]
+}

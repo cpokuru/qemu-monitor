@@ -363,6 +363,169 @@ const indexHTML = `<!DOCTYPE html>
             font-family: 'JetBrains Mono', monospace;
         }
 
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 0.6rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .action-btn.start {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .action-btn.start:hover {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+        }
+
+        .action-btn.stop {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .action-btn.stop:hover {
+            background: var(--accent-red);
+            color: var(--bg-primary);
+        }
+
+        .action-btn.force-stop {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .action-btn.force-stop:hover {
+            background: var(--accent-red);
+            color: var(--bg-primary);
+        }
+
+        .action-btn.shell {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .action-btn.shell:hover {
+            background: var(--accent-blue);
+            color: var(--bg-primary);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .action-btn:disabled:hover {
+            transform: none;
+            box-shadow: none;
+            background: var(--bg-secondary);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 2px solid var(--accent-green);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3);
+        }
+
+        .modal-header {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--accent-green);
+            margin-bottom: 1rem;
+        }
+
+        .modal-body {
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+        }
+
+        .modal-code {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-green);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+            color: var(--accent-green);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 0.7rem 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn.primary {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+            color: var(--bg-primary);
+        }
+
+        .modal-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
         .no-instances {
             text-align: center;
             padding: 4rem 2rem;
@@ -434,13 +597,144 @@ const indexHTML = `<!DOCTYPE html>
         </div>
     </div>
 
+    <div id="shell-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Shell Access</div>
+            <div class="modal-body" id="shell-modal-body"></div>
+            <div class="modal-actions">
+                <button class="modal-btn" onclick="closeShellModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentFilter = 'all';
         let allInstances = [];
+        let vmsConfig = { vms: [] };
 
         function formatUptime(cpuTime) {
             if (!cpuTime) return 'N/A';
             return cpuTime;
+        }
+
+        async function loadVMsConfig() {
+            try {
+                const response = await fetch('/api/vms');
+                vmsConfig = await response.json();
+            } catch (error) {
+                console.error('Failed to load VMs config:', error);
+            }
+        }
+
+        function findVMConfig(name) {
+            return vmsConfig.vms.find(function(vm) { return vm.name === name; });
+        }
+
+        function isVMRunning(name) {
+            return allInstances.some(function(inst) { return inst.name === name; });
+        }
+
+        async function startVM(name) {
+            if (!confirm('Start VM: ' + name + '?')) return;
+            
+            try {
+                const response = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name })
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('VM started successfully! Refreshing...');
+                    setTimeout(fetchInstances, 2000);
+                }
+            } catch (error) {
+                alert('Failed to start VM: ' + error.message);
+            }
+        }
+
+        async function stopVM(pid, name, force) {
+            if (!force) {
+                if (!confirm('Stop VM: ' + name + ' (PID: ' + pid + ')?\n\nThis will send SIGTERM for graceful shutdown.')) {
+                    return;
+                }
+            }
+            
+            try {
+                const response = await fetch('/api/stop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pid: pid, force: force || false })
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    if (data.error.includes('operation not permitted') || data.error.includes('permission denied')) {
+                        alert('Permission denied. You may need to enter your sudo password in the terminal running the server.');
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                } else {
+                    alert('VM ' + data.status + ' successfully! Refreshing...');
+                    setTimeout(fetchInstances, 2000);
+                }
+            } catch (error) {
+                alert('Failed to stop VM: ' + error.message);
+            }
+        }
+
+        async function forceStopVM(pid, name) {
+            if (!confirm('⚠️ FORCE STOP VM: ' + name + ' (PID: ' + pid + ')?\n\nThis will send SIGKILL and immediately terminate the VM.\nUse this only if graceful shutdown failed.\n\nContinue?')) {
+                return;
+            }
+            await stopVM(pid, name, true);
+        }
+
+        async function showShell(name) {
+            try {
+                const response = await fetch('/api/shell', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name })
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                let html = '<div><strong>VM:</strong> ' + name + '</div>';
+                
+                if (!data.running) {
+                    html += '<div style="color: var(--accent-amber); margin-top: 1rem;">VM is not currently running</div>';
+                }
+                
+                if (data.ssh_command) {
+                    html += '<div class="modal-code">' + data.ssh_command + '</div>';
+                }
+                
+                if (data.http_url) {
+                    html += '<div style="margin-top: 1rem;"><strong>HTTP:</strong></div>';
+                    html += '<div class="modal-code">' + data.http_url + '</div>';
+                }
+
+                if (!data.ssh_command && !data.http_url) {
+                    html += '<div style="color: var(--text-dim); margin-top: 1rem;">No shell access configured for this VM</div>';
+                }
+
+                document.getElementById('shell-modal-body').innerHTML = html;
+                document.getElementById('shell-modal').classList.add('show');
+            } catch (error) {
+                alert('Failed to get shell info: ' + error.message);
+            }
+        }
+
+        function closeShellModal() {
+            document.getElementById('shell-modal').classList.remove('show');
         }
 
         function createInstanceCard(instance, index) {
@@ -497,6 +791,11 @@ const indexHTML = `<!DOCTYPE html>
                    '</div>' +
                    '</div>' +
                    '</div>' +
+                   '<div class="actions">' +
+                   '<button class="action-btn stop" onclick="stopVM(\'' + instance.pid + '\', \'' + (instance.name || 'VM') + '\', false)" title="Graceful shutdown (SIGTERM)">Stop</button>' +
+                   '<button class="action-btn force-stop" onclick="forceStopVM(\'' + instance.pid + '\', \'' + (instance.name || 'VM') + '\')" title="Force kill (SIGKILL)">Kill</button>' +
+                   '<button class="action-btn shell" onclick="showShell(\'' + (instance.name || '') + '\')">Shell</button>' +
+                   '</div>' +
                    '</div>';
         }
 
@@ -513,13 +812,55 @@ const indexHTML = `<!DOCTYPE html>
                 }
             }
             
-            if (filtered.length === 0) {
+            let html = '';
+            
+            // Show available VMs that can be started
+            const runningNames = instances.map(function(i) { return i.name; });
+            const availableVMs = vmsConfig.vms.filter(function(vm) {
+                return !runningNames.includes(vm.name);
+            });
+
+            if (availableVMs.length > 0 && currentFilter === 'all') {
+                html += '<div style="margin-bottom: 2rem;">';
+                html += '<h2 style="color: var(--text-dim); font-size: 1rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1px;">Available VMs</h2>';
+                html += '<div class="instances-grid">';
+                availableVMs.forEach(function(vm, index) {
+                    const animationDelay = index * 0.05;
+                    html += '<div class="instance-card" style="animation-delay: ' + animationDelay + 's; opacity: 0.6;">';
+                    html += '<div class="instance-header">';
+                    html += '<div class="instance-name">' + vm.name + '</div>';
+                    html += '<div class="status-badge" style="background: var(--text-dim);">STOPPED</div>';
+                    html += '</div>';
+                    html += '<div class="instance-type">configured</div>';
+                    html += '<div class="instance-details">';
+                    html += '<div class="detail-row"><div class="detail-label">Memory</div><div class="detail-value mono">' + vm.memory + 'M</div></div>';
+                    html += '<div class="detail-row"><div class="detail-label">CPU Cores</div><div class="detail-value mono">' + vm.cpus + '</div></div>';
+                    html += '<div class="detail-row"><div class="detail-label">Disk</div><div class="detail-value mono">' + vm.disk + '</div></div>';
+                    html += '</div>';
+                    html += '<div class="actions">';
+                    html += '<button class="action-btn start" onclick="startVM(\'' + vm.name + '\')">Start</button>';
+                    html += '<button class="action-btn shell" onclick="showShell(\'' + vm.name + '\')">Shell Info</button>';
+                    html += '</div>';
+                    html += '</div>';
+                });
+                html += '</div></div>';
+            }
+
+            if (filtered.length === 0 && availableVMs.length === 0) {
                 container.innerHTML = '<div class="no-instances">No instances found</div>';
                 return;
             }
+
+            if (filtered.length > 0) {
+                if (availableVMs.length > 0 && currentFilter === 'all') {
+                    html += '<h2 style="color: var(--text-dim); font-size: 1rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1px;">Running Instances</h2>';
+                }
+                html += '<div class="instances-grid">';
+                html += filtered.map(createInstanceCard).join('');
+                html += '</div>';
+            }
             
-            const cardsHtml = filtered.map(createInstanceCard).join('');
-            container.innerHTML = '<div class="instances-grid">' + cardsHtml + '</div>';
+            container.innerHTML = html;
         }
 
         async function fetchInstances() {
@@ -538,6 +879,13 @@ const indexHTML = `<!DOCTYPE html>
             }
         }
 
+        // Close modal on outside click
+        document.getElementById('shell-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeShellModal();
+            }
+        });
+
         // Filter functionality
         document.querySelectorAll('.filter-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
@@ -550,9 +898,11 @@ const indexHTML = `<!DOCTYPE html>
             });
         });
 
-        // Initial load and auto-refresh
-        fetchInstances();
-        setInterval(fetchInstances, 5000);
+        // Initialize
+        loadVMsConfig().then(function() {
+            fetchInstances();
+            setInterval(fetchInstances, 5000);
+        });
     </script>
 </body>
 </html>
